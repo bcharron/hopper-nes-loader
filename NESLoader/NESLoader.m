@@ -10,8 +10,12 @@
 
 // "NES" with DOS EOF
 #define NES_MAGIC 0x1A53454E
-
+#define NES_HAS_SRAM 1 << 4
 #define NES_HAS_TRAINER 1 << 2
+
+#define NES_NMI_VECTOR 0xFFFA
+#define NES_RESET_VECTOR 0xFFFC
+#define NES_IRQ_VECTOR 0xFFFE
 
 @implementation NESLoader {
     NSObject<HPHopperServices> *_services;
@@ -71,6 +75,31 @@
     return (@[]);
 }
 
+- (void)createSegment:(NSString *)name  atVirtualAddress:(Address)virtualAddress atFileOffset:(Address)fileOffset length:(size_t)length  forFile:(NSObject<HPDisassembledFile> *)file withData:(NSData *)data {
+
+    const uint8_t *bytes = (const uint8_t *)[data bytes];
+    
+    NSLog(@"Create segment of %ld bytes at $%04X-$%04X", length, virtualAddress, (uint16_t) virtualAddress + length - 1);
+    
+    NSObject<HPSegment> *segment = [file addSegmentAt:virtualAddress size:length];
+    segment.segmentName = @"PRG_ROM_BANK1";
+    
+    NSData *segmentData = [NSData dataWithBytes:&bytes[fileOffset] length:length];
+    segment.mappedData = segmentData;
+    segment.fileOffset = fileOffset;
+    segment.fileLength = length;
+    
+    NSObject<HPSection> *section = [segment addSectionAt:virtualAddress size:length];
+    
+    section.sectionName = name;
+    section.pureCodeSection = YES;
+    
+    section.fileOffset = fileOffset;
+    section.fileLength = length;
+    
+}
+
+
 /// Load a file.
 /// The plugin should create HPSegment and HPSection objects.
 /// It should also fill information about the CPU by setting the CPU family, the CPU subfamily and optionally the CPU plugin UUID.
@@ -95,43 +124,92 @@
         prg_rom_offset += 512;
     }
     
-    NSLog(@"Create section of %d bytes at [0x%x;0x%x[", 16 * 1024, 0x8000, 0x8000 + 0x4000);
-
-    NSObject<HPSegment> *prg_rom_segment = [file addSegmentAt:0x8000 size:0x8000];
-    prg_rom_segment.segmentName = @"PRG_ROM";
-    // NSString *comment = [NSString stringWithFormat:@"\n\nBank %d\n\n", x];
-
-    NSData *segmentData = [NSData dataWithBytes:&bytes[prg_rom_offset] length:0x8000];
-    prg_rom_segment.mappedData = segmentData;
-    prg_rom_segment.fileOffset = prg_rom_offset;
-    prg_rom_segment.fileLength = 0x8000;
-
-    // this should be "prg_rom_units" instead of "2", but we don't know how to swap banks.
-    int nb_sections = 2;
+    uint8_t mapper = (flags_7 & 0xF0) | ((flags_6 & 0xF0) >> 4);
     
-    // max(prg_rom_units, 2)
-    if (prg_rom_units < nb_sections)
-        nb_sections = prg_rom_units;
-    
-    for (int x = 0; x < nb_sections; x++) {
-        uint32_t startAddress = 0x8000 + (0x4000 * x);
-        
-        NSObject<HPSection> *section = [prg_rom_segment addSectionAt:startAddress size:0x4000];
-        
-        NSString *sectionName = [NSString stringWithFormat:@"Bank %d", x];
-        section.sectionName = sectionName;
-        section.pureCodeSection = YES;
-        
-        section.fileOffset = prg_rom_offset + 0x4000 * x;
-        section.fileLength = 0x4000;
+    if (mapper != 0x01) {
+        NSLog(@"ERROR: Mapper %d is not supported.", mapper);
+        return(DIS_NotSupported);
     }
+    
+    // Create a segment for the first bank, mapped at $8000 at powerup (?)
+    [self createSegment:@"Bank 0" atVirtualAddress:0x8000 atFileOffset:prg_rom_offset length:0x4000 forFile:file withData:data];
+
+    
+    // Create a segment for the last bank, which is mapped at $C000 at powerup
+    int last_bank_offset = (prg_rom_units - 1) * 0x4000 + prg_rom_offset;
+    
+    NSString *sectionName = [NSString stringWithFormat:@"Bank %d", prg_rom_units - 1];
+    
+    [self createSegment:sectionName atVirtualAddress:0xC000 atFileOffset:last_bank_offset length:0x4000 forFile:file withData:data];
+    
+    
+    // SRAM - 0:present 1:not present
+    if ((flags_10 & NES_HAS_SRAM) == 0) {
+        NSLog(@"This cartridge has SRAM in $6000-7FFF");
+        
+        NSObject<HPSegment> *sram_segment = [file addSegmentAt:0x6000 size:0x2000];
+        sram_segment.segmentName = @"SRAM";
+        
+        NSObject<HPSection> *section = [sram_segment addSectionAt:0x6000 size:0x2000];
+        section.sectionName = @"SRAM";
+    }
+    
+    // Create RAM segment: $0000-$2000
+    NSObject<HPSegment> *ram_segment = [file addSegmentAt:0x0000 size:0x2000];
+    ram_segment.segmentName = @"RAM";
+    
+    NSObject<HPSection> *ram_section = [ram_segment addSectionAt:0x0000 size:0x2000];
+    ram_section.sectionName = @"RAM";
+
+    
+    // Create PPU Control Registers: $2000-$2008 (and mirrors 2009-3FFF)
+    NSObject<HPSegment> *ppu_ctrl_registers_segment = [file addSegmentAt:0x2000 size:0x2000];
+    ppu_ctrl_registers_segment.segmentName = @"PPUCTLREG";
+    
+    NSObject<HPSection> *ppu_ctrl_registers_section = [ppu_ctrl_registers_segment addSectionAt:0x2000 size:0x2000];
+    ppu_ctrl_registers_section.sectionName = @"PPUCTLREG";
+    
+    [file setName:@"PPUCTRL" forVirtualAddress:0x2000];
+    [file setName:@"PPUMASK" forVirtualAddress:0x2001];
+    [file setName:@"PPUSTATUS" forVirtualAddress:0x2002];
+    [file setName:@"OAMADDR" forVirtualAddress:0x2003];
+    [file setName:@"OAMDATA" forVirtualAddress:0x2004];
+    [file setName:@"PPUSCROLL" forVirtualAddress:0x2005];
+    [file setName:@"PPUADDR" forVirtualAddress:0x2006];
+    [file setName:@"PPUDATA" forVirtualAddress:0x2007];
+    
+    // Create APU Control Registers: $4000-$401F
+    NSObject<HPSegment> *apu_reg_segment = [file addSegmentAt:0x4000 size:20];
+    apu_reg_segment.segmentName = @"APUCTRLREG";
+    
+    NSObject<HPSection> *apu_reg_section = [ppu_ctrl_registers_segment addSectionAt:0x4000 size:20];
+    apu_reg_section.sectionName = @"APUCTRLREG";
+
     
     // NSObject<HPSegment> *chr_rom_segment = [file addSegmentAt:0x8000 size:0x8000];
 
     file.cpuFamily = @"ricoh";
     file.cpuSubFamily = @"R2A03";
     [file setAddressSpaceWidthInBits:32];
-    [file addEntryPoint:0x8000];
+    
+    // Get the reset vector at 0xFFFC from the last bank
+    uint16_t reset_vector = OSReadLittleInt16(bytes, last_bank_offset + 0x3FFC);
+    uint16_t nmi_vector = OSReadLittleInt16(bytes, last_bank_offset + 0x3FFA);
+    uint16_t irq_vector = OSReadLittleInt16(bytes, last_bank_offset + 0x3FFE);
+    
+    [file setName:@"nmi_vector" forVirtualAddress:NES_NMI_VECTOR];
+    [file setName:@"reset_vector" forVirtualAddress:NES_RESET_VECTOR];
+    [file setName:@"irq_vector" forVirtualAddress:NES_IRQ_VECTOR];
+    
+    [file setType:Type_Int16 atVirtualAddress:NES_NMI_VECTOR forLength:2];
+    [file setType:Type_Int16 atVirtualAddress:NES_RESET_VECTOR forLength:2];
+    [file setType:Type_Int16 atVirtualAddress:NES_IRQ_VECTOR forLength:2];
+    
+    [file setFormat:Format_Address forArgument:0 atVirtualAddress:NES_NMI_VECTOR];
+    [file setFormat:Format_Address forArgument:0 atVirtualAddress:NES_RESET_VECTOR];
+    [file setFormat:Format_Address forArgument:0 atVirtualAddress:NES_IRQ_VECTOR];
+
+    [file addEntryPoint:reset_vector];
     
     return(DIS_OK);
 }
