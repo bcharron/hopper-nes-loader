@@ -77,7 +77,7 @@
     return (@[]);
 }
 
-- (void)createSegment:(NSString *)name  atVirtualAddress:(Address)virtualAddress atFileOffset:(Address)fileOffset length:(size_t)length  forFile:(NSObject<HPDisassembledFile> *)file withData:(NSData *)data {
+- (void)createCodeSegment:(NSString *)name  atVirtualAddress:(Address)virtualAddress atFileOffset:(Address)fileOffset length:(size_t)length  forFile:(NSObject<HPDisassembledFile> *)file withData:(NSData *)data {
 
     const uint8_t *bytes = (const uint8_t *)[data bytes];
     
@@ -95,7 +95,7 @@
     NSObject<HPSection> *section = [segment addSectionAt:virtualAddress size:length];
     
     section.sectionName = name;
-    section.pureCodeSection = YES;
+    section.containsCode = YES;
     
     section.fileOffset = fileOffset;
     section.fileLength = length;
@@ -144,7 +144,7 @@
     }
     
     // Create a segment for the first bank, mapped at $8000 at powerup (?)
-    [self createSegment:@"Bank 0" atVirtualAddress:0x8000 atFileOffset:prg_rom_offset length:0x4000 forFile:file withData:data];
+    [self createCodeSegment:@"Bank 0" atVirtualAddress:0x8000 atFileOffset:prg_rom_offset length:0x4000 forFile:file withData:data];
 
     
     // Create a segment for the last bank, which is mapped at $C000 at powerup
@@ -152,7 +152,7 @@
     
     NSString *sectionName = [NSString stringWithFormat:@"Bank %d", prg_rom_units - 1];
     
-    [self createSegment:sectionName atVirtualAddress:0xC000 atFileOffset:last_bank_offset length:0x4000 forFile:file withData:data];
+    [self createCodeSegment:sectionName atVirtualAddress:0xC000 atFileOffset:last_bank_offset length:0x4000 forFile:file withData:data];
     
     
     // SRAM - 0:present 1:not present
@@ -164,6 +164,7 @@
         
         NSObject<HPSection> *section = [sram_segment addSectionAt:0x6000 size:0x2000];
         section.sectionName = @"SRAM";
+        section.pureDataSection = YES;
     }
     
     // Create RAM segment: $0000-$2000
@@ -172,7 +173,7 @@
     
     NSObject<HPSection> *ram_section = [ram_segment addSectionAt:0x0000 size:0x2000];
     ram_section.sectionName = @"RAM";
-
+    ram_section.pureDataSection = YES;
     
     // Create PPU Control Registers: $2000-$2008 (and mirrors 2009-3FFF)
     NSObject<HPSegment> *ppu_ctrl_registers_segment = [file addSegmentAt:0x2000 size:0x2000];
@@ -180,6 +181,7 @@
     
     NSObject<HPSection> *ppu_ctrl_registers_section = [ppu_ctrl_registers_segment addSectionAt:0x2000 size:0x2000];
     ppu_ctrl_registers_section.sectionName = @"PPUCTLREG";
+    ppu_ctrl_registers_section.pureDataSection = YES;
     
     [file setName:@"PPUCTRL" forVirtualAddress:0x2000];
     [file setName:@"PPUMASK" forVirtualAddress:0x2001];
@@ -196,6 +198,7 @@
     
     NSObject<HPSection> *apu_reg_section = [ppu_ctrl_registers_segment addSectionAt:0x4000 size:20];
     apu_reg_section.sectionName = @"APUCTRLREG";
+    apu_reg_section.pureDataSection = YES;
 
     
     // NSObject<HPSegment> *chr_rom_segment = [file addSegmentAt:0x8000 size:0x8000];
@@ -216,6 +219,10 @@
     [file setType:Type_Int16 atVirtualAddress:NES_NMI_VECTOR forLength:2];
     [file setType:Type_Int16 atVirtualAddress:NES_RESET_VECTOR forLength:2];
     [file setType:Type_Int16 atVirtualAddress:NES_IRQ_VECTOR forLength:2];
+    
+    [file addPotentialProcedure:nmi_vector];
+    [file addPotentialProcedure:reset_vector];
+    [file addPotentialProcedure:irq_vector];
     
     [file setFormat:Format_Address forArgument:0 atVirtualAddress:NES_NMI_VECTOR];
     [file setFormat:Format_Address forArgument:0 atVirtualAddress:NES_RESET_VECTOR];
