@@ -207,9 +207,9 @@
     file.cpuSubFamily = @"R2A03";
     [file setAddressSpaceWidthInBits:32];
     
-    // Get the reset vector at 0xFFFC from the last bank
-    uint16_t reset_vector = OSReadLittleInt16(bytes, last_bank_offset + 0x3FFC);
+    // Get the three vector at 0xFFFA..FFFC from the last bank
     uint16_t nmi_vector = OSReadLittleInt16(bytes, last_bank_offset + 0x3FFA);
+    uint16_t reset_vector = OSReadLittleInt16(bytes, last_bank_offset + 0x3FFC);
     uint16_t irq_vector = OSReadLittleInt16(bytes, last_bank_offset + 0x3FFE);
     
     [file setName:@"nmi_vector" forVirtualAddress:NES_NMI_VECTOR];
