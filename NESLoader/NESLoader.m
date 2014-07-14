@@ -13,6 +13,8 @@
 #define NES_HAS_SRAM 1 << 4
 #define NES_HAS_TRAINER 1 << 2
 
+#define NES_MAPPER_MMC1 0x01
+
 #define NES_NMI_VECTOR 0xFFFA
 #define NES_RESET_VECTOR 0xFFFC
 #define NES_IRQ_VECTOR 0xFFFE
@@ -79,7 +81,8 @@
 
     const uint8_t *bytes = (const uint8_t *)[data bytes];
     
-    NSLog(@"Create segment of %ld bytes at $%04X-$%04X", length, virtualAddress, (uint16_t) virtualAddress + length - 1);
+    NSString *segCreated = [NSString stringWithFormat:@"Create segment of %ld bytes at $%04llX-$%04llX", length, virtualAddress, virtualAddress + length - 1];
+    [_services logMessage:segCreated];
     
     NSObject<HPSegment> *segment = [file addSegmentAt:virtualAddress size:length];
     segment.segmentName = @"PRG_ROM_BANK1";
@@ -119,16 +122,25 @@
     uint8_t flags_9 = bytes[9];
     uint8_t flags_10 = bytes[10];
     
-    // Skip trainer
+    // Skip trainer if there is one
     if (flags_6 & NES_HAS_TRAINER) {
         prg_rom_offset += 512;
     }
     
     uint8_t mapper = (flags_7 & 0xF0) | ((flags_6 & 0xF0) >> 4);
     
-    if (mapper != 0x01) {
+    if (mapper != NES_MAPPER_MMC1) {
         NSLog(@"ERROR: Mapper %d is not supported.", mapper);
         return(DIS_NotSupported);
+    } else {
+        switch(mapper) {
+            case NES_MAPPER_MMC1:
+                [_services logMessage:@"Detected MMC1 mapper."];
+                break;
+                
+            default:
+                break;
+        }
     }
     
     // Create a segment for the first bank, mapped at $8000 at powerup (?)
@@ -145,7 +157,7 @@
     
     // SRAM - 0:present 1:not present
     if ((flags_10 & NES_HAS_SRAM) == 0) {
-        NSLog(@"This cartridge has SRAM in $6000-7FFF");
+        [_services logMessage:@"This cartridge has SRAM in $6000-$7FFF"];
         
         NSObject<HPSegment> *sram_segment = [file addSegmentAt:0x6000 size:0x2000];
         sram_segment.segmentName = @"SRAM";
