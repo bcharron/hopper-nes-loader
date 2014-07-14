@@ -9,14 +9,31 @@
 /* Begin PBXBuildFile section */
 		85C531BD19733B9900A8230B /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 85C531BC19733B9900A8230B /* CoreFoundation.framework */; };
 		85C531C319733B9A00A8230B /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 85C531C119733B9900A8230B /* InfoPlist.strings */; };
+		85C531CC19733C9100A8230B /* NESLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = 85C531CB19733C9100A8230B /* NESLoader.m */; };
+		85C531CE19735B5000A8230B /* NESLoader.hopperLoader in CopyFiles */ = {isa = PBXBuildFile; fileRef = 85C531B919733B9900A8230B /* NESLoader.hopperLoader */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		85C531CD19735B4500A8230B /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(HOME)/Library/Application Support/Hopper/PlugIns/Loaders";
+			dstSubfolderSpec = 0;
+			files = (
+				85C531CE19735B5000A8230B /* NESLoader.hopperLoader in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		85C531B919733B9900A8230B /* NESLoader.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NESLoader.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		85C531B919733B9900A8230B /* NESLoader.hopperLoader */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NESLoader.hopperLoader; sourceTree = BUILT_PRODUCTS_DIR; };
 		85C531BC19733B9900A8230B /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		85C531C019733B9900A8230B /* NESLoader-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "NESLoader-Info.plist"; sourceTree = "<group>"; };
 		85C531C219733B9900A8230B /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		85C531C419733B9A00A8230B /* NESLoader-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NESLoader-Prefix.pch"; sourceTree = "<group>"; };
+		85C531CA19733C9100A8230B /* NESLoader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NESLoader.h; sourceTree = "<group>"; };
+		85C531CB19733C9100A8230B /* NESLoader.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NESLoader.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,7 +60,7 @@
 		85C531BA19733B9900A8230B /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				85C531B919733B9900A8230B /* NESLoader.bundle */,
+				85C531B919733B9900A8230B /* NESLoader.hopperLoader */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -60,6 +77,8 @@
 			isa = PBXGroup;
 			children = (
 				85C531BF19733B9900A8230B /* Supporting Files */,
+				85C531CA19733C9100A8230B /* NESLoader.h */,
+				85C531CB19733C9100A8230B /* NESLoader.m */,
 			);
 			path = NESLoader;
 			sourceTree = "<group>";
@@ -84,6 +103,7 @@
 				85C531B519733B9900A8230B /* Sources */,
 				85C531B619733B9900A8230B /* Frameworks */,
 				85C531B719733B9900A8230B /* Resources */,
+				85C531CD19735B4500A8230B /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -91,7 +111,7 @@
 			);
 			name = NESLoader;
 			productName = NESLoader;
-			productReference = 85C531B919733B9900A8230B /* NESLoader.bundle */;
+			productReference = 85C531B919733B9900A8230B /* NESLoader.hopperLoader */;
 			productType = "com.apple.product-type.bundle";
 		};
 /* End PBXNativeTarget section */
@@ -136,6 +156,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				85C531CC19733C9100A8230B /* NESLoader.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -227,12 +248,18 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
+				DEPLOYMENT_POSTPROCESSING = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "NESLoader/NESLoader-Prefix.pch";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"/Users/bcharron/re/hopper-nes-loader/include",
+				);
 				INFOPLIST_FILE = "NESLoader/NESLoader-Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				INSTALL_PATH = "$(HOME)/Library/Application Support/Hopper/Plugins/Loaders";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				WRAPPER_EXTENSION = bundle;
+				WRAPPER_EXTENSION = hopperLoader;
 			};
 			name = Debug;
 		};
@@ -240,12 +267,18 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
+				DEPLOYMENT_POSTPROCESSING = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "NESLoader/NESLoader-Prefix.pch";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"/Users/bcharron/re/hopper-nes-loader/include",
+				);
 				INFOPLIST_FILE = "NESLoader/NESLoader-Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				INSTALL_PATH = "$(HOME)/Library/Application Support/Hopper/Plugins/Loaders";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				WRAPPER_EXTENSION = bundle;
+				WRAPPER_EXTENSION = hopperLoader;
 			};
 			name = Release;
 		};
